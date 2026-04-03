@@ -17,11 +17,24 @@ A local AI chat app with a built-in Cantonese audio transcription skill using Fa
 
 ## Quick Start
 
+**macOS / Linux:**
 ```bash
 git clone https://github.com/zh-skills/chat-with-skills-transcribe-cantonese
 cd chat-with-skills-transcribe-cantonese
-pip3 install -r requirements.txt
-python3 transcribe01_server.py
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python transcribe01_server.py
+```
+
+**Windows:**
+```bash
+git clone https://github.com/zh-skills/chat-with-skills-transcribe-cantonese
+cd chat-with-skills-transcribe-cantonese
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python transcribe01_server.py
 ```
 
 The browser opens automatically at `http://localhost:8115/transcribe01_index.html`.
