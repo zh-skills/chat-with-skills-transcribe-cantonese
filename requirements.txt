@@ -1,0 +1,7 @@
+python-dotenv
+requests
+flask
+flask-cors
+waitress
+llama-cpp-python
+faster-whisper

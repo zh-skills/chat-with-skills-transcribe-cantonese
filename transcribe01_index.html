@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat01</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 200px; background: #1c1c1e; display: flex; flex-direction: column; padding: 24px 0; flex-shrink: 0; }
+    .sidebar-logo { font-size: 12px; font-weight: 700; color: #8e8e93; letter-spacing: 0.08em; padding: 0 20px 24px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; font-size: 14px; color: #aeaeb2; cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: background 0.15s, color 0.15s; }
+    .nav-item:hover  { background: #2c2c2e; color: #fff; }
+    .nav-item.active { background: #2c2c2e; color: #fff; }
+    .nav-item .icon  { font-size: 16px; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .view.active { display: flex; }
+
+    /* Chat */
+    .chat-header { padding: 16px 24px; border-bottom: 1px solid #e5e5ea; background: #fff; font-size: 15px; font-weight: 600; }
+    #chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+    .message-wrap { display: flex; flex-direction: column; }
+    .message-wrap.user { align-items: flex-end; }
+    .message-wrap.assistant { align-items: flex-start; }
+    .message { max-width: 75%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .message.user { background: #0071e3; color: #fff; border-bottom-right-radius: 4px; }
+    .message.assistant { background: #fff; color: #1d1d1f; border: 1px solid #e5e5ea; border-bottom-left-radius: 4px; }
+    .message.assistant.thinking { color: #8e8e93; font-style: italic; }
+    .message.assistant p { margin-bottom: 8px; }
+    .message.assistant p:last-child { margin-bottom: 0; }
+    .chat-input-area { padding: 16px 24px; border-top: 1px solid #e5e5ea; background: #fff; display: flex; gap: 10px; align-items: flex-end; }
+    #user-input { flex: 1; border: 1.5px solid #d1d1d6; border-radius: 12px; padding: 10px 14px; font-size: 14px; resize: none; outline: none; min-height: 42px; max-height: 120px; font-family: inherit; }
+    #user-input:focus { border-color: #0071e3; }
+    #send-btn { background: #0071e3; color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-size: 14px; cursor: pointer; }
+    #send-btn:disabled { opacity: 0.5; cursor: default; }
+    #stop-btn { display: none; background: #ff3b30; color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-size: 14px; cursor: pointer; }
+
+    /* Skills */
+    .panel-body { flex: 1; overflow-y: auto; padding: 24px; }
+    .panel-title { font-size: 18px; font-weight: 700; color: #1d1d1f; margin-bottom: 6px; }
+    .panel-subtitle { font-size: 13px; color: #6e6e73; margin-bottom: 20px; }
+    .skill-card { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid #e5e5ea; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+    .skill-icon { font-size: 24px; flex-shrink: 0; }
+    .skill-name { font-size: 14px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
+    .skill-desc { font-size: 13px; color: #6e6e73; margin-bottom: 6px; }
+    .tool-usage { font-size: 12px; color: #6e6e73; }
+    .tool-example-text { font-family: monospace; color: #0071e3; cursor: pointer; }
+    .tool-example-text:hover { text-decoration: underline; }
+
+    /* Settings */
+    .settings-body { flex: 1; overflow-y: auto; padding: 32px; }
+    .settings-row { margin-bottom: 24px; }
+    .settings-label { font-size: 13px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
+    .settings-value { font-size: 13px; color: #6e6e73; font-family: monospace; }
+    select { font-size: 13px; padding: 6px 10px; border: 1.5px solid #d1d1d6; border-radius: 8px; background: #fff; outline: none; }
+    select:focus { border-color: #0071e3; }
+    button#model-save-btn { margin-top: 10px; background: #0071e3; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; cursor: pointer; }
+    #model-status { font-size: 12px; margin-top: 6px; color: #8e8e93; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">Chat with Skills<br><span style="font-size:10px;font-weight:400;color:#6e6e73;">用技能聊天</span></div>
+    <button class="nav-item active" data-view="chat"><span class="icon">💬</span> Chat <span style="font-size:11px;color:#6e6e73;">聊天</span></button>
+    <button class="nav-item" data-view="skills"><span class="icon">⚡</span> Skills <span style="font-size:11px;color:#6e6e73;">技能</span></button>
+    <button class="nav-item" data-view="settings"><span class="icon">⚙️</span> Settings <span style="font-size:11px;color:#6e6e73;">设置</span></button>
+  </div>
+
+  <div class="main">
+    <!-- Chat -->
+    <div id="chat-view" class="view active">
+      <div class="chat-header">Chat with Local Model</div>
+      <div id="chat-messages"></div>
+      <div class="chat-input-area">
+        <textarea id="user-input" placeholder="Type a message or 'use skill transcribe-cantonese voice.mp3'" rows="1"></textarea>
+        <button id="send-btn">Send</button>
+        <button id="stop-btn">Stop</button>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div id="skills-view" class="view">
+      <div class="panel-body">
+        <div class="panel-title">Skills</div>
+        <div class="panel-subtitle">Click an example to copy it to Chat</div>
+        <div id="skills-catalog-list"></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-view" class="view">
+      <div class="settings-body">
+        <div class="panel-title" style="margin-bottom:20px">Settings <span style="font-size:14px;font-weight:400;color:#6e6e73;">设置</span></div>
+
+        <div class="settings-row">
+          <div class="settings-label">AI Provider <span style="font-size:11px;font-weight:400;color:#6e6e73;">AI 提供商</span></div>
+          <div style="font-size:13px;color:#6e6e73;margin-bottom:10px;">🏠 Default (local) <span style="font-size:11px;">默认（本地）</span></div>
+          <div class="settings-label" style="font-weight:400;margin-bottom:4px;">Local Model <span style="font-size:11px;color:#6e6e73;font-weight:400;">本地模型</span></div>
+          <select id="local-model-select">
+            <option value="Qwen2.5-0.5B-Instruct-Q4_K_M.gguf" selected>Qwen2.5-0.5B-Instruct-Q4_K_M.gguf (~400MB)</option>
+            <option value="Qwen2.5-1.5B-Instruct-Q4_K_M.gguf">Qwen2.5-1.5B-Instruct-Q4_K_M.gguf (~1GB)</option>
+          </select>
+          <div style="font-size:12px;color:#6e6e73;margin-top:4px;">Downloaded to models/ on first use.<br>首次使用时下载至 models/ 文件夹。</div>
+          <button id="model-save-btn">Apply 应用</button>
+          <div id="model-status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="transcribe01_marked.min.js?v=1"></script>
+  <script src="transcribe01_app.js?v=1"></script>
+</body>
+</html>
