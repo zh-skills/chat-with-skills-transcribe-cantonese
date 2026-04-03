@@ -1,0 +1,12 @@
+.env
+models/
+__pycache__/
+*.pyc
+*.mp3
+*_transcription.txt
+.DS_Store
+models/
+__pycache__/
+*.pyc
+*.mp3
+*_transcription.txt
