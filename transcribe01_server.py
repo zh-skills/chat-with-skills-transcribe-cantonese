@@ -92,6 +92,10 @@ def chat():
     question = (data.get("message") or "").strip()
     if not question:
         return jsonify({"error": "No message provided."}), 400
+    model_path = os.path.join(MODELS_DIR, active_model)
+    if not os.path.exists(model_path):
+        threading.Thread(target=ensure_local_model, daemon=True).start()
+        return jsonify({"answer": f"⏳ Downloading model {active_model} (~400MB) in the background...\nPlease wait a moment and try again. Check the terminal for download progress."})
     try:
         answer = chat_completion([{"role": "user", "content": question}])
         return jsonify({"answer": answer})
