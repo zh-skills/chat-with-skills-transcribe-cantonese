@@ -24,7 +24,7 @@ cd chat-with-skills-transcribe-cantonese
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python transcribe01_server.py
+python server.py
 ```
 
 **Windows:**
@@ -34,7 +34,7 @@ cd chat-with-skills-transcribe-cantonese
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python transcribe01_server.py
+python server.py
 ```
 
 The browser opens automatically at `http://localhost:8115/transcribe01_index.html`.
