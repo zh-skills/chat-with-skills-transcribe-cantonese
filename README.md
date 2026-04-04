@@ -17,12 +17,26 @@ A local AI chat app with a built-in Cantonese audio transcription skill using Fa
 
 ## Quick Start
 
-**Step 1 — Install uv (one-time, choose one):**
+**Step 1 — Install uv package manager (one-time, choose one):**
+
+If pip works:
 ```bash
-pip install uv                                                    # if pip works
-pipx install uv                                                   # if pip is blocked (macOS Homebrew)
-curl -LsSf https://astral.sh/uv/install.sh | sh                  # macOS / Linux (no pip needed)
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"       # Windows (no pip needed)
+pip install uv
+```
+
+If pip is blocked (macOS Homebrew):
+```bash
+pipx install uv
+```
+
+macOS / Linux (no pip needed):
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows (no pip needed):
+```bash
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 **Step 2 — Clone and run:**
