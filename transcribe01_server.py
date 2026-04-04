@@ -25,6 +25,9 @@ INDEX_FILE   = "transcribe01_index.html"
 sys.path.insert(0, os.path.join(SKILLS_DIR, "transcribe-cantonese", "scripts"))
 from transcribe_cantonese import transcribe_cantonese
 
+sys.path.insert(0, os.path.join(SKILLS_DIR, "transcribe-cantonese-with-review", "scripts"))
+from transcribe_cantonese_with_review import transcribe_cantonese_with_review
+
 # ── Local GGUF model ──────────────────────────────────────────────────────────
 
 active_model = 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf'
@@ -139,6 +142,23 @@ def api_transcribe_cantonese():
         filepath = filename
     answer = transcribe_cantonese(filepath)
     return jsonify({"answer": answer, "skill": "transcribe-cantonese"})
+
+
+# ── Skill: transcribe-cantonese-with-review ───────────────────────────────────
+
+@app.route("/api/transcribe-cantonese-with-review", methods=["POST"])
+def api_transcribe_cantonese_with_review():
+    data     = request.get_json()
+    message  = (data.get("message") or "").strip()
+    filename = re.sub(r'^(?:use\s+skill\s+transcribe-cantonese-with-review|用技能转录粤语并校对)\s*', '', message, flags=re.IGNORECASE).strip()
+    if not filename:
+        return jsonify({"answer": "Please include an audio filename.\nExample: use skill transcribe-cantonese-with-review speech-Cantonese.mp3"})
+    if not os.path.isabs(filename):
+        filepath = os.path.join(BASE_DIR, filename)
+    else:
+        filepath = filename
+    answer = transcribe_cantonese_with_review(filepath, llm_fn=chat_completion)
+    return jsonify({"answer": answer, "skill": "transcribe-cantonese-with-review"})
 
 
 # ── Static file server ────────────────────────────────────────────────────────

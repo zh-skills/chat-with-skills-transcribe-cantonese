@@ -37,8 +37,20 @@ const SKILLS_CATALOG = [
     natural: 'use skill transcribe-cantonese speech-Cantonese.mp3',
     examples: [
       'use skill transcribe-cantonese speech-Cantonese.mp3',
-      'use skill transcribe-cantonese voice.mp3',
+      'use skill transcribe-cantonese speech-Cantonese.mp3',
       '用技能转录粤语 speech-Cantonese.mp3',
+    ],
+  },
+  {
+    id: 'transcribe-cantonese-with-review',
+    icon: '🔬',
+    name: 'Transcribe Cantonese with Review',
+    desc: 'Transcribe a Cantonese audio file to text, then review and correct with AI.<br><span style="color:#8e8e93;font-size:12px;">将粤语音频转录为文字，再用 AI 校对纠正。</span>',
+    natural: 'use skill transcribe-cantonese-with-review speech-Cantonese.mp3',
+    examples: [
+      'use skill transcribe-cantonese-with-review speech-Cantonese.mp3',
+      'use skill transcribe-cantonese-with-review speech-Cantonese.mp3',
+      '用技能转录粤语并校对 speech-Cantonese.mp3',
     ],
   },
 ];
@@ -138,8 +150,13 @@ function addMessage(text, role) {
 }
 
 function isTranscribeCantonese(text) {
-  return /use\s+skill\s+transcribe-cantonese/i.test(text)
-      || /用技能转录粤语/.test(text);
+  return /use\s+skill\s+transcribe-cantonese(?!-with-review)/i.test(text)
+      || /用技能转录粤语(?!并校对)/.test(text);
+}
+
+function isTranscribeCantoneseWithReview(text) {
+  return /use\s+skill\s+transcribe-cantonese-with-review/i.test(text)
+      || /用技能转录粤语并校对/.test(text);
 }
 
 async function sendMessage() {
@@ -149,10 +166,12 @@ async function sendMessage() {
   input.value = '';
   setDisabled(true);
 
-  const endpoint = isTranscribeCantonese(text) ? `${API_BASE}/api/transcribe-cantonese`
-                 :                                `${API_BASE}/api/chat`;
-  const label    = isTranscribeCantonese(text) ? 'Transcribing...'
-                 :                                'Thinking...';
+  const endpoint = isTranscribeCantoneseWithReview(text) ? `${API_BASE}/api/transcribe-cantonese-with-review`
+                 : isTranscribeCantonese(text)            ? `${API_BASE}/api/transcribe-cantonese`
+                 :                                          `${API_BASE}/api/chat`;
+  const label    = isTranscribeCantoneseWithReview(text) ? 'Transcribing and reviewing...'
+                 : isTranscribeCantonese(text)            ? 'Transcribing...'
+                 :                                          'Thinking...';
   const thinking = addMessage(label, 'assistant thinking');
 
   currentAbort = new AbortController();
