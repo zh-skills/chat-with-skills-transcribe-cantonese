@@ -58,7 +58,33 @@ def transcribe(audio_path: str) -> str:
     return "\n".join(l for l in lines if l.strip())
 
 
-def review_with_llm(text: str, llm_fn, ref_file: str = None) -> str:
+def load_corrections(corrections_file: str) -> dict:
+    """Load word corrections from file. Format: wrong，correct (one per line)."""
+    corrections = {}
+    if not os.path.isfile(corrections_file):
+        return corrections
+    with open(corrections_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            # Support both ，(full-width) and ,(half-width) as separator
+            parts = line.replace('，', ',').split(',', 1)
+            if len(parts) == 2:
+                wrong, correct = parts[0].strip(), parts[1].strip()
+                if wrong and correct:
+                    corrections[wrong] = correct
+    return corrections
+
+
+def apply_corrections(text: str, corrections: dict) -> str:
+    """Apply word-level corrections to text."""
+    for wrong, correct in corrections.items():
+        text = text.replace(wrong, correct)
+    return text
+
+
+def review_with_llm(text: str, llm_fn, ref_file: str = None, corrections_file: str = None) -> str:
     """Use LLM to review and correct Cantonese transcription using reference sentences."""
     import re
 
@@ -75,22 +101,60 @@ def review_with_llm(text: str, llm_fn, ref_file: str = None) -> str:
 
     # If we have high-confidence matches, just replace directly without LLM
     if matched:
-        # Split transcription into lines and try to match each
-        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        import re as _re
+
+        # Try to split text into segments matching reference sentence lengths
+        # First try punctuation splits
+        segments = _re.split(r'[，,。！？\n]+', text)
+        segments = [s.strip() for s in segments if s.strip()]
+
+        # If only one segment (no punctuation), try to split by matching reference boundaries
+        if len(segments) == 1 and len(matched) > 1:
+            remaining = text
+            new_segments = []
+            for ref in matched:
+                # Find where this reference best fits in remaining text
+                best_pos = 0
+                best_score = 0
+                for i in range(len(remaining)):
+                    window = remaining[i:i+len(ref)+5]
+                    score = sum(c in window for c in ref) / max(len(ref), 1)
+                    if score > best_score:
+                        best_score = score
+                        best_pos = i
+                if best_score >= 0.5:
+                    if best_pos > 0:
+                        new_segments.append(remaining[:best_pos])
+                    new_segments.append(remaining[best_pos:best_pos+len(ref)+2])
+                    remaining = remaining[best_pos+len(ref)+2:]
+            if remaining:
+                new_segments.append(remaining)
+            if len(new_segments) > 1:
+                segments = [s.strip() for s in new_segments if s.strip()]
+
         corrected_lines = []
-        for line in lines:
-            best = max(matched, key=lambda s: sum(c in line for c in s) / max(len(s), 1))
-            score = sum(c in line for c in best) / max(len(best), 1)
+        for seg in segments:
+            best = max(matched, key=lambda s: sum(c in seg for c in s) / max(len(s), 1))
+            score = sum(c in seg for c in best) / max(len(best), 1)
             if score >= 0.5:
                 corrected_lines.append(best)
             else:
-                corrected_lines.append(line)
-        return "\n".join(corrected_lines)
+                corrected_lines.append(seg)
+        result = "\n".join(corrected_lines)
+        # Apply word corrections on top of reference matching
+        if corrections_file:
+            corrections = load_corrections(corrections_file)
+            result = apply_corrections(result, corrections)
+        return result
 
     # Fallback: ask LLM to correct without reference
     try:
         prompt = f"粵語校對，只糾正明顯錯誤，只返回更正後文本：\n{text}"
-        return llm_fn([{"role": "user", "content": prompt}]).strip()
+        corrected = llm_fn([{"role": "user", "content": prompt}]).strip()
+        if corrections_file:
+            corrections = load_corrections(corrections_file)
+            corrected = apply_corrections(corrected, corrections)
+        return corrected
     except Exception as e:
         return text
 
@@ -112,15 +176,21 @@ def transcribe_cantonese_with_review(audio_path: str, llm_fn=None) -> str:
     # Step 2: AI review (if LLM available)
     if llm_fn:
         print("AI review in progress...")
-        # Look for Cantonese-sentences.txt in same dir as audio or parent dirs
+        # Look for Cantonese-sentences.txt in assets/ next to the script, then fallback locations
         ref_file = None
-        for search_dir in [os.path.dirname(audio_path), os.getcwd(),
-                           os.path.dirname(os.path.abspath(__file__))]:
-            candidate = os.path.join(search_dir, "Cantonese-sentences.txt")
-            if os.path.isfile(candidate):
-                ref_file = candidate
-                break
-        corrected = review_with_llm(raw, llm_fn, ref_file=ref_file)
+        corrections_file = None
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(script_dir, '..', 'assets')
+        for search_dir in [assets_dir, os.path.dirname(audio_path), os.getcwd()]:
+            if ref_file is None:
+                candidate = os.path.join(search_dir, "Cantonese-sentences.txt")
+                if os.path.isfile(candidate):
+                    ref_file = candidate
+            if corrections_file is None:
+                candidate = os.path.join(search_dir, "Cantonese-corrections.txt")
+                if os.path.isfile(candidate):
+                    corrections_file = candidate
+        corrected = review_with_llm(raw, llm_fn, ref_file=ref_file, corrections_file=corrections_file)
         result += f"\n\n✅ AI Corrected:\n{corrected}"
         save_text = corrected
     else:
