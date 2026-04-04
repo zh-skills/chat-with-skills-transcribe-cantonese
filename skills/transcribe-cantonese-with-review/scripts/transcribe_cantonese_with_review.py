@@ -62,37 +62,37 @@ def review_with_llm(text: str, llm_fn, ref_file: str = None) -> str:
     """Use LLM to review and correct Cantonese transcription using reference sentences."""
     import re
 
-    # Load reference sentences and find top matches
-    reference_section = ""
+    # Load reference sentences and find top matches above 50% similarity
+    matched = []
     if ref_file and os.path.isfile(ref_file):
         with open(ref_file, 'r', encoding='utf-8') as f:
             ref_sentences = [line.strip() for line in f if line.strip()]
         if ref_sentences:
             def _sim(s):
                 return sum(c in text for c in s) / max(len(s), 1)
-            top = sorted(ref_sentences, key=_sim, reverse=True)[:10]
-            reference_section = "\n參考句子庫：\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(top)) + "\n"
+            matched = [s for s in ref_sentences if _sim(s) >= 0.5]
+            matched = sorted(matched, key=_sim, reverse=True)[:5]
 
-    prompt = f"""粵語校對。如參考句子庫中有相似度超過50%的句子，直接用該句子替換原文。否則只糾正明顯錯誤。
-{reference_section}
-原始文本：
-{text}
+    # If we have high-confidence matches, just replace directly without LLM
+    if matched:
+        # Split transcription into lines and try to match each
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        corrected_lines = []
+        for line in lines:
+            best = max(matched, key=lambda s: sum(c in line for c in s) / max(len(s), 1))
+            score = sum(c in line for c in best) / max(len(best), 1)
+            if score >= 0.5:
+                corrected_lines.append(best)
+            else:
+                corrected_lines.append(line)
+        return "\n".join(corrected_lines)
 
-只需回覆：
-完整的更正後文本： 更正後文本（保持原有換行）"""
-
+    # Fallback: ask LLM to correct without reference
     try:
-        review = llm_fn([{"role": "user", "content": prompt}])
-        # Extract corrected text after the marker
-        for marker in ["完整的更正後文本：", "完整的更正後文本:"]:
-            if marker in review:
-                corrected = review.split(marker)[-1].strip()
-                corrected = re.sub(r'\*+', '', corrected).strip()
-                if corrected:
-                    return corrected
-        return review.strip()
+        prompt = f"粵語校對，只糾正明顯錯誤，只返回更正後文本：\n{text}"
+        return llm_fn([{"role": "user", "content": prompt}]).strip()
     except Exception as e:
-        return f"(AI review failed: {e})\n{text}"
+        return text
 
 
 def transcribe_cantonese_with_review(audio_path: str, llm_fn=None) -> str:
