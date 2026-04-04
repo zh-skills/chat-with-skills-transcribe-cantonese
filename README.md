@@ -1,4 +1,4 @@
-# Transcribe01 — Chat with Cantonese Transcription Skill
+# Chat with transcribe-cantonese skill
 
 A local AI chat app with a built-in Cantonese audio transcription skill using Faster Whisper.
 
